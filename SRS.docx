@@ -1,0 +1,1732 @@
+# KYC Document Intelligence Platform
+
+## Phase 1 — Document Text Extraction & Review
+
+**Document Type:** Software Requirements Specification / Functional Requirements Specification
+**Project:** KYC Document Intelligence Platform
+**Phase:** Phase 1 — Text Extraction & Source-Linked Review
+**Target Implementation:** FastAPI + Python backend, web frontend, Firebase/Google Cloud infrastructure
+**Primary Development Assistant:** GitHub Copilot
+**Status:** Implementation Specification / MVP
+
+---
+
+# 1. Project Overview
+
+## 1.1 Problem Statement
+
+The current KYC workflow requires employees to manually work across multiple documents and systems.
+
+The primary identified issue is:
+
+> Manually switching between document/file explorers, Excel for information verification, and manually adding remarks for KYC.
+
+This workflow becomes particularly inefficient when a KYC case contains approximately 8–15 documents.
+
+The KYC requirements also vary according to the type of entity being processed.
+
+Examples include:
+
+* Agent — Individual
+* Agent — Proprietorship
+* Agent — Private Limited / Public Limited
+* Agent — Partnership Firm
+* Agent — LLP
+* Corporate — Proprietorship
+* Corporate — Private/Public Limited
+* Corporate — Partnership
+* Corporate — LLP
+* Dealer
+* Tour Operator
+
+The supplied requirements include documents such as PAN, Aadhaar, GST, COI, MOA/AOA, LOA, BO documents, SVR/customer profile, partnership deeds, RBI licenses, cheque/cancelled cheque, etc.
+
+Therefore, the first objective is NOT to automate the complete KYC decision.
+
+The first objective is:
+
+> Allow a user to upload all documents for a KYC case at once and automatically extract their text/information while preserving a reliable link between every extracted item and its original document/page/location.
+
+---
+
+# 2. Phase 1 Objective
+
+Phase 1 will build a **KYC Document Intelligence — Extraction & Review MVP**.
+
+The MVP must allow the user to:
+
+1. Upload multiple documents simultaneously.
+2. Process PDFs, DOCX files and common image formats.
+3. Extract machine-readable text from documents.
+4. Use OCR when documents are scanned/image-based.
+5. Detect and report extraction failures.
+6. Display all extracted information in one consolidated interface.
+7. Identify the document from which each extracted value originated.
+8. Identify the page from which the information originated.
+9. Allow the user to review the original document alongside extracted information.
+10. Highlight or otherwise identify the source location of extracted information when technically possible.
+11. Preserve uploaded documents temporarily so they remain available for the review screen.
+12. Automatically delete uploaded document files after a configurable short retention period, initially targeted at approximately 10 minutes.
+13. Never silently treat extraction failure as missing information.
+
+Phase 1 will NOT automatically approve or reject a KYC case.
+
+---
+
+# 3. Scope
+
+## 3.1 In Scope
+
+### Document Upload
+
+* Multiple-file upload
+* Drag-and-drop upload
+* PDF
+* DOCX
+* JPG/JPEG
+* PNG
+* Potential future support for other formats
+
+### Document Processing
+
+* PDF text extraction
+* DOCX text extraction
+* OCR for scanned/image-based documents
+* Page-level processing
+* Text normalization
+* Basic information/field extraction
+
+### Extraction Results
+
+* Raw extracted text
+* Structured extracted information
+* Document name
+* Page number
+* Source location where available
+* Extraction confidence
+* Processing status
+* Error/warning information
+
+### Review Interface
+
+* Consolidated extraction page
+* Document viewer
+* Extracted-information viewer
+* Source linking
+* Side-by-side comparison
+
+### Failure Handling
+
+* Failed extraction state
+* Partial extraction state
+* Low-confidence state
+* Unsupported-format state
+* User-readable error messages
+* Retry/re-upload capability
+
+### Temporary Storage
+
+* Temporary document storage
+* Automatic document deletion
+* Configurable retention period
+
+---
+
+# 4. Explicitly Out of Scope for Phase 1
+
+The following should NOT be implemented as part of the first MVP:
+
+* Automatic KYC approval/rejection
+* Fraud detection
+* External government database verification
+* PAN verification against external systems
+* GST verification against external systems
+* Automated legal/compliance decisions
+* Complete document requirement validation
+* Automated remarks generation
+* Cross-document identity matching
+* Automated mismatch resolution
+* Training a custom OCR model from scratch
+* Long-term storage of uploaded KYC documents
+* Permanent document archival
+
+These may become future phases.
+
+---
+
+# 5. Known KYC Document Context
+
+The system must be designed to support varying document types.
+
+Examples from the provided requirements include:
+
+## 5.1 Agent — Individual
+
+Required documents include:
+
+* Aadhaar
+* PAN
+* Cancelled cheque
+* Agent Profile — Word and PDF
+* Cluster Head Approval
+
+## 5.2 Agent — Proprietorship
+
+Required documents include:
+
+* Aadhaar
+* PAN
+* Cheque
+* GST / Udyam Certificate / Import-Export Certificate / Shop & Establishment
+* Agent Profile
+* Cluster Head Approval
+
+## 5.3 Agent — Private/Public Limited
+
+Required documents include:
+
+* COI
+* GST
+* Company PAN
+* Cheque
+* Agent Profile
+* Cluster Head Approval
+
+## 5.4 Corporate KYC
+
+Requirements vary by organization type.
+
+For example, Private/Public Limited requirements include:
+
+* COI
+* PAN
+* LOA + ID Proof
+* MOA/AOA
+* BO + ID Proof
+* GST
+* Address Proof
+* SVR
+
+The provided requirements also specify special conditions such as LOA certification and bundled LOA + ID proof PDFs.
+
+The extraction platform must therefore NOT assume a fixed number or fixed type of documents.
+
+## 5.5 Dealer
+
+Dealer requirements include:
+
+* COI
+* MOA/AOA
+* Company PAN
+* GST
+* LOA with ID proof
+* LOD with ID proof
+* SVR
+* RBI License
+* AMC due diligence
+* Cluster Head approval
+
+The supplied Dealer document also contains examples of pending-document issues such as missing RBI-license stamp information and missing SVR/customer-profile information.
+
+---
+
+# 6. Functional Requirements
+
+## FR-001 — Multi-Document Upload
+
+The system shall allow the user to upload multiple documents in a single operation.
+
+Example:
+
+```text
+PAN.pdf
+Aadhaar.pdf
+GST.pdf
+LOA.pdf
+MOA_AOA.pdf
+SVR.docx
+Cheque.jpg
+```
+
+The user should not have to upload documents one at a time.
+
+---
+
+## FR-002 — Upload Validation
+
+For every uploaded file, the system shall validate:
+
+* File type
+* File size
+* File readability
+* File integrity
+* Whether the format is supported
+
+Unsupported files must be clearly reported.
+
+Example:
+
+```text
+❌ Unsupported file format
+
+File:
+example.xyz
+
+Supported formats:
+PDF, DOCX, JPG, JPEG, PNG
+```
+
+---
+
+# 7. Document Processing Pipeline
+
+The processing pipeline should follow:
+
+```text
+Upload
+   ↓
+File Validation
+   ↓
+Document Storage
+   ↓
+Document Type / Format Detection
+   ↓
+Text Extraction
+   ↓
+OCR if required
+   ↓
+Text Normalization
+   ↓
+Information Extraction
+   ↓
+Confidence Evaluation
+   ↓
+Result Storage
+   ↓
+Review Interface
+```
+
+---
+
+# 8. Direct Text Extraction vs OCR
+
+The system should first determine whether a document already contains machine-readable text.
+
+## Case A — Digital PDF
+
+Example:
+
+```text
+PDF
+ ↓
+Extract embedded text
+ ↓
+Success
+```
+
+OCR should not be unnecessarily applied.
+
+## Case B — Scanned PDF
+
+Example:
+
+```text
+PDF
+ ↓
+No usable embedded text
+ ↓
+Render page as image
+ ↓
+OCR
+ ↓
+Extract text
+```
+
+## Case C — Image
+
+```text
+JPG/PNG
+ ↓
+OCR
+ ↓
+Extract text
+```
+
+## Case D — DOCX
+
+```text
+DOCX
+ ↓
+Extract paragraphs/tables
+ ↓
+Normalize text
+```
+
+The architecture should keep these extraction methods separate so that the system can replace or improve an extraction engine later.
+
+---
+
+# 9. OCR / ML Architecture
+
+The project should NOT initially train a custom machine-learning model.
+
+Use existing document/OCR technologies through a replaceable abstraction.
+
+Recommended architecture:
+
+```python
+class DocumentExtractor:
+    def extract(self, document):
+        pass
+```
+
+Possible implementations:
+
+```python
+class PDFTextExtractor(DocumentExtractor):
+    pass
+
+class OCRExtractor(DocumentExtractor):
+    pass
+
+class DOCXExtractor(DocumentExtractor):
+    pass
+```
+
+The backend should be able to select the appropriate extractor based on the document.
+
+This prevents the entire application from becoming dependent on one OCR provider.
+
+---
+
+# 10. Extraction Result Model
+
+Every extraction result must preserve provenance.
+
+Do NOT store only:
+
+```json
+{
+  "pan": "ABCDE1234F"
+}
+```
+
+Instead use a structure similar to:
+
+```json
+{
+  "field": "PAN",
+  "value": "ABCDE1234F",
+  "confidence": 0.98,
+  "source": {
+    "document_id": "doc_123",
+    "document_name": "PAN.pdf",
+    "page": 1,
+    "location": {
+      "x": 120,
+      "y": 300,
+      "width": 200,
+      "height": 50
+    }
+  }
+}
+```
+
+The exact implementation may differ, but source provenance is mandatory.
+
+---
+
+# 11. Provenance Requirements
+
+Every extracted information item should contain, where available:
+
+* Case ID
+* Document ID
+* Document filename
+* Page number
+* Extracted value
+* Raw source text
+* Confidence score
+* Source coordinates/bounding box if supported
+* Extraction method
+* Timestamp
+
+Example:
+
+```text
+Information:
+PAN
+
+Value:
+ABCDE1234F
+
+Source:
+PAN.pdf
+
+Page:
+1
+
+Extraction Method:
+OCR
+
+Confidence:
+98%
+```
+
+---
+
+# 12. Raw Text Storage
+
+The system should preserve page-level extracted text during the active review session.
+
+Example:
+
+```json
+{
+  "document_id": "doc_001",
+  "pages": [
+    {
+      "page_number": 1,
+      "text": "Permanent Account Number ...",
+      "confidence": 0.98
+    }
+  ]
+}
+```
+
+This is necessary because the second page must be able to show the source document and extracted information together.
+
+---
+
+# 13. First UI Page — Extraction Dashboard
+
+The first page should provide a consolidated view.
+
+Suggested layout:
+
+```text
+------------------------------------------------------------
+KYC Document Extraction
+------------------------------------------------------------
+
+[ Upload Documents ]
+
+Case: CASE-001
+
+Processing Summary
+
+Documents: 8
+Successful: 6
+Partial: 1
+Failed: 1
+
+------------------------------------------------------------
+
+Extracted Information
+
+Field          Value             Source       Confidence
+------------------------------------------------------------
+PAN            ABCDE1234F        PAN.pdf      98%
+Name           John Doe          PAN.pdf      97%
+GSTIN          27ABCDE...        GST.pdf      99%
+Address        Mumbai...         GST.pdf      91%
+Company Name   ABC Pvt Ltd       COI.pdf      96%
+------------------------------------------------------------
+
+[ Review Documents ]
+```
+
+The user should be able to click an extracted item.
+
+Clicking:
+
+```text
+PAN → ABCDE1234F
+```
+
+should navigate to the source/review interface.
+
+---
+
+# 14. Second UI Page — Document Review
+
+The second page is the detailed comparison/review interface.
+
+Layout:
+
+```text
+------------------------------------------------------------
+Document Review
+------------------------------------------------------------
+
+DOCUMENTS              EXTRACTED INFORMATION
+
+PAN.pdf                PAN
+                       ABCDE1234F
+                       Source: PAN.pdf / Page 1
+                       Confidence: 98%
+
+                       Name
+                       John Doe
+                       Source: PAN.pdf / Page 1
+                       Confidence: 97%
+
+------------------------------------------------------------
+```
+
+Recommended layout:
+
+```text
+┌────────────────────────────┬──────────────────────────────┐
+│                            │                              │
+│      SOURCE DOCUMENT       │      EXTRACTED DATA          │
+│                            │                              │
+│      PDF/Image viewer      │      PAN                     │
+│                            │      ABCDE1234F              │
+│      Page 1                │                              │
+│                            │      Name                    │
+│      [highlight source]    │      John Doe                │
+│                            │                              │
+│                            │      Confidence: 98%          │
+│                            │                              │
+└────────────────────────────┴──────────────────────────────┘
+```
+
+---
+
+# 15. Source Highlighting
+
+Where the OCR/document-processing engine provides bounding-box information, the UI should highlight the source region.
+
+Example:
+
+```text
+Original Document
+
+PAN: [ABCDE1234F]
+      ^^^^^^^^^^
+      highlighted
+```
+
+When the user selects:
+
+```text
+PAN → ABCDE1234F
+```
+
+the document viewer should:
+
+1. Open the relevant document.
+2. Navigate to the relevant page.
+3. Highlight the source region if coordinates are available.
+
+If coordinates are unavailable, the UI must still display:
+
+```text
+Source:
+PAN.pdf
+Page 1
+```
+
+The system must never claim visual highlighting when it does not actually have reliable coordinates.
+
+---
+
+# 16. Extraction Status
+
+Every document must have one of the following statuses:
+
+### SUCCESS
+
+```text
+Extraction successful
+```
+
+### PARTIAL
+
+```text
+Extraction partially successful
+Some information may require manual review.
+```
+
+### FAILED
+
+```text
+Extraction failed
+Manual review required.
+```
+
+### UNSUPPORTED
+
+```text
+Unsupported document format.
+```
+
+### PROCESSING
+
+```text
+Processing...
+```
+
+---
+
+# 17. Failure Handling
+
+Failure handling is a core requirement.
+
+The system must NEVER silently return empty extraction results.
+
+For example, if a scanned PAN is too blurry:
+
+```text
+⚠ Extraction Failed
+
+Document:
+PAN.pdf
+
+Reason:
+The document image could not be read reliably.
+
+Possible causes:
+- Low image quality
+- Blurred scan
+- Excessive compression
+- Obstruction
+- Unsupported document structure
+
+Recommended action:
+Upload a clearer scan or review the document manually.
+```
+
+---
+
+# 18. Partial Extraction
+
+If only some information can be extracted:
+
+```text
+⚠ Partial Extraction
+
+Document:
+Aadhaar.pdf
+
+Successfully extracted:
+✓ Name
+✓ Document number
+
+Could not reliably extract:
+✗ Address
+
+Reason:
+The address region has insufficient OCR confidence.
+
+Action:
+Review the original document manually.
+```
+
+The system must distinguish:
+
+```text
+Not found
+```
+
+from:
+
+```text
+Could not extract
+```
+
+These are not equivalent.
+
+---
+
+# 19. Confidence
+
+The system should store confidence when the underlying extraction/OCR technology supports it.
+
+Example:
+
+```text
+PAN
+ABCDE1234F
+Confidence: 98%
+```
+
+Important:
+
+> Confidence represents confidence in the extraction, NOT proof that the information is legally or externally valid.
+
+For example:
+
+```text
+OCR Confidence: 99%
+```
+
+does not mean:
+
+```text
+PAN is valid.
+```
+
+Validation belongs to a future phase.
+
+---
+
+# 20. Storage Architecture
+
+The preferred architecture is:
+
+```text
+                    Firebase
+                       │
+        ┌──────────────┴──────────────┐
+        │                             │
+   Firestore                    Cloud Storage
+        │                             │
+        │                       Temporary files
+        │                             │
+ Metadata/results               PDF/DOCX/images
+        │                             │
+        └──────────────┬──────────────┘
+                       │
+                    FastAPI
+                       │
+                    Frontend
+```
+
+## Firestore
+
+Use Firestore for:
+
+* Case metadata
+* Document metadata
+* Processing status
+* Extraction results
+* Source references
+* Error messages
+* Confidence values
+* Timestamps
+* Temporary document references
+
+## Cloud Storage
+
+Use Cloud Storage for:
+
+* Uploaded PDF files
+* DOCX files
+* Images
+* Temporary rendered pages if necessary
+
+Do NOT treat Firestore as the primary binary-file store.
+
+---
+
+# 21. Document Retention Policy
+
+Uploaded documents are temporary processing artifacts.
+
+Initial target:
+
+> Uploaded source documents should be automatically deleted approximately 10 minutes after upload/processing completion.
+
+The exact retention duration must be configurable.
+
+Example configuration:
+
+```env
+DOCUMENT_RETENTION_MINUTES=10
+```
+
+The application should NOT depend solely on a frontend timer.
+
+Deletion should be enforced server-side/storage-side.
+
+Preferred approach:
+
+```text
+Upload
+ ↓
+Cloud Storage
+ ↓
+Processing
+ ↓
+Review
+ ↓
+10-minute retention period
+ ↓
+Automatic deletion
+```
+
+The system should retain the structured extraction results only for as long as necessary for the active workflow.
+
+A future production policy may change this retention period based on company security/compliance requirements.
+
+---
+
+# 22. Important Retention Design Consideration
+
+The second review page requires access to the original document.
+
+Therefore:
+
+```text
+Upload
+      ↓
+Document stored temporarily
+      ↓
+Extraction result generated
+      ↓
+User opens Review Page
+      ↓
+Original document still accessible
+      ↓
+Retention period expires
+      ↓
+Document deleted
+```
+
+The frontend must not assume that a document will always be available.
+
+If the document has expired:
+
+```text
+Original document is no longer available.
+
+The temporary retention period has expired.
+Please upload the document again if source-level review is required.
+```
+
+---
+
+# 23. Suggested Firestore Data Model
+
+## Collection: cases
+
+```text
+cases/{case_id}
+```
+
+Example:
+
+```json
+{
+  "created_at": "...",
+  "status": "processing",
+  "document_count": 8,
+  "expires_at": "..."
+}
+```
+
+---
+
+## Collection: documents
+
+```text
+cases/{case_id}/documents/{document_id}
+```
+
+Example:
+
+```json
+{
+  "filename": "PAN.pdf",
+  "mime_type": "application/pdf",
+  "size": 123456,
+  "storage_path": "temporary/case_001/doc_001.pdf",
+  "status": "success",
+  "page_count": 1,
+  "extraction_method": "pdf_text",
+  "created_at": "...",
+  "expires_at": "..."
+}
+```
+
+---
+
+## Collection: pages
+
+```text
+cases/{case_id}/documents/{document_id}/pages/{page_id}
+```
+
+Example:
+
+```json
+{
+  "page_number": 1,
+  "text": "...",
+  "confidence": 0.98
+}
+```
+
+---
+
+## Collection: extracted_fields
+
+```text
+cases/{case_id}/extracted_fields/{field_id}
+```
+
+Example:
+
+```json
+{
+  "field": "PAN",
+  "value": "ABCDE1234F",
+  "confidence": 0.98,
+  "document_id": "doc_001",
+  "page_number": 1,
+  "source_text": "PAN: ABCDE1234F",
+  "source_bbox": {
+    "x": 120,
+    "y": 300,
+    "width": 200,
+    "height": 50
+  }
+}
+```
+
+---
+
+# 24. Backend Technology
+
+## Primary Backend
+
+**Python + FastAPI**
+
+The backend should expose REST APIs.
+
+FastAPI is preferred because:
+
+* Python is suitable for document/OCR processing.
+* It integrates naturally with ML/document-processing libraries.
+* It provides automatic API documentation.
+* It is lightweight enough for an MVP.
+* Async processing can be introduced where appropriate.
+
+---
+
+# 25. Proposed API
+
+## Create Case
+
+```http
+POST /api/v1/cases
+```
+
+Response:
+
+```json
+{
+  "case_id": "case_001"
+}
+```
+
+---
+
+## Upload Documents
+
+```http
+POST /api/v1/cases/{case_id}/documents
+```
+
+Multipart upload.
+
+Multiple files should be supported.
+
+---
+
+## Get Processing Status
+
+```http
+GET /api/v1/cases/{case_id}/status
+```
+
+Response:
+
+```json
+{
+  "case_id": "case_001",
+  "total_documents": 8,
+  "processing": 1,
+  "successful": 6,
+  "partial": 1,
+  "failed": 0
+}
+```
+
+---
+
+## Get Extraction Results
+
+```http
+GET /api/v1/cases/{case_id}/extractions
+```
+
+Returns structured extracted information.
+
+---
+
+## Get Document
+
+```http
+GET /api/v1/cases/{case_id}/documents/{document_id}
+```
+
+Returns document metadata and temporary access information.
+
+---
+
+## Get Page Text
+
+```http
+GET /api/v1/cases/{case_id}/documents/{document_id}/pages/{page_number}
+```
+
+Returns page-level extracted text.
+
+---
+
+## Retry Extraction
+
+```http
+POST /api/v1/cases/{case_id}/documents/{document_id}/retry
+```
+
+Used after a failed extraction or after the user replaces a problematic document.
+
+---
+
+# 26. Backend Project Structure
+
+Suggested structure:
+
+```text
+backend/
+│
+├── app/
+│   ├── main.py
+│   │
+│   ├── api/
+│   │   ├── cases.py
+│   │   ├── documents.py
+│   │   └── extractions.py
+│   │
+│   ├── models/
+│   │   ├── case.py
+│   │   ├── document.py
+│   │   └── extraction.py
+│   │
+│   ├── services/
+│   │   ├── document_service.py
+│   │   ├── extraction_service.py
+│   │   ├── ocr_service.py
+│   │   ├── storage_service.py
+│   │   └── cleanup_service.py
+│   │
+│   ├── extractors/
+│   │   ├── base.py
+│   │   ├── pdf.py
+│   │   ├── docx.py
+│   │   └── ocr.py
+│   │
+│   ├── repositories/
+│   │   ├── firestore.py
+│   │   └── storage.py
+│   │
+│   └── core/
+│       ├── config.py
+│       ├── logging.py
+│       └── exceptions.py
+│
+└── tests/
+```
+
+---
+
+# 27. Frontend
+
+The frontend should be a modern web application.
+
+The exact framework can follow the developer's existing project setup. If no existing frontend framework is mandated, React is recommended.
+
+Primary screens:
+
+```text
+/                         Upload Dashboard
+/case/{id}                Extraction Results
+/case/{id}/review         Document Review
+```
+
+---
+
+# 28. Processing Architecture
+
+For the MVP, processing can initially be synchronous/asynchronous depending on document size.
+
+For multiple documents, the preferred model is:
+
+```text
+Upload
+ ↓
+Create processing jobs
+ ↓
+Process documents independently
+ ↓
+Update status
+ ↓
+Frontend polls/subscribes to status
+ ↓
+Display completed results
+```
+
+This allows one failed document to fail independently without blocking all other documents.
+
+Example:
+
+```text
+PAN.pdf          ✓ SUCCESS
+Aadhaar.pdf      ✓ SUCCESS
+GST.pdf          ✓ SUCCESS
+LOA.pdf          ⚠ PARTIAL
+SVR.docx         ✓ SUCCESS
+Cheque.jpg       ❌ FAILED
+```
+
+The user should still be able to review the successful documents.
+
+---
+
+# 29. Security Requirements
+
+Because KYC documents contain sensitive personal/business information, security must be treated as a core requirement even in the MVP.
+
+The system should:
+
+* Use HTTPS.
+* Avoid logging document contents.
+* Avoid logging PAN/Aadhaar values unnecessarily.
+* Use temporary signed/private document access.
+* Restrict storage bucket access.
+* Never expose storage buckets publicly.
+* Delete temporary source documents after expiration.
+* Avoid putting document contents into URLs.
+* Avoid storing credentials in source code.
+* Use environment variables/secrets management.
+* Validate uploaded file types.
+* Limit upload sizes.
+
+The application should also avoid storing sensitive document content in application logs.
+
+---
+
+# 30. Data Deletion
+
+Deletion must occur at the storage level.
+
+The cleanup mechanism should delete:
+
+```text
+Original uploaded files
+Temporary rendered files
+Temporary OCR artifacts
+```
+
+after expiration.
+
+Firestore records may either:
+
+1. Be deleted with the document, or
+2. Be retained temporarily as non-sensitive processing metadata.
+
+The exact production retention policy should be configurable.
+
+The MVP should at minimum ensure that the original uploaded document itself is deleted automatically.
+
+---
+
+# 31. Error Model
+
+Backend errors should be structured.
+
+Example:
+
+```json
+{
+  "code": "OCR_LOW_CONFIDENCE",
+  "message": "The document could not be read reliably.",
+  "document_id": "doc_123",
+  "page": 1,
+  "retryable": true
+}
+```
+
+Suggested error codes:
+
+```text
+UNSUPPORTED_FILE_TYPE
+FILE_TOO_LARGE
+FILE_CORRUPTED
+PDF_PARSE_FAILED
+DOCX_PARSE_FAILED
+OCR_FAILED
+OCR_LOW_CONFIDENCE
+NO_TEXT_DETECTED
+PARTIAL_EXTRACTION
+PROCESSING_TIMEOUT
+STORAGE_ERROR
+UNKNOWN_EXTRACTION_ERROR
+```
+
+---
+
+# 32. Observability
+
+The system should log processing metadata, not sensitive document contents.
+
+Useful logs:
+
+```text
+case_id
+document_id
+filename
+processing_start
+processing_end
+extractor_used
+status
+error_code
+processing_duration
+```
+
+Avoid:
+
+```text
+PAN value
+Aadhaar number
+full document text
+personal address
+```
+
+---
+
+# 33. Non-Functional Requirements
+
+## Performance
+
+For normal KYC documents, the system should provide processing feedback quickly.
+
+The UI should not appear frozen while documents are being processed.
+
+Example:
+
+```text
+PAN.pdf       Processing...
+GST.pdf       Processing...
+COI.pdf       ✓ Complete
+SVR.docx      Processing...
+```
+
+## Reliability
+
+A failure in one document must not crash the entire case.
+
+## Scalability
+
+The architecture should support multiple users uploading cases concurrently.
+
+## Maintainability
+
+OCR/extraction providers should be replaceable.
+
+## Traceability
+
+Every extracted field must be traceable back to its source document.
+
+## Privacy
+
+Uploaded source documents should be temporary by default.
+
+---
+
+# 34. Phase 1 Acceptance Criteria
+
+Phase 1 will be considered successful when a user can:
+
+### Upload
+
+* Upload 8–15 documents in one operation.
+* Upload mixed supported file types.
+* See upload status.
+
+### Process
+
+* Extract text from digital PDFs.
+* Extract text from DOCX.
+* OCR scanned PDFs/images where possible.
+* Process documents independently.
+
+### Review
+
+* See all extracted information in one page.
+* See which document produced each value.
+* See page numbers.
+* Open the source document.
+* Review source and extracted information side-by-side.
+
+### Failure Handling
+
+* Clearly see failed documents.
+* See why extraction failed.
+* Distinguish partial extraction from complete failure.
+* Retry/re-upload a failed document.
+
+### Temporary Storage
+
+* Source files remain available during the review period.
+* Source files are automatically deleted after the configured retention period.
+* The UI handles expired documents gracefully.
+
+---
+
+# 35. MVP Development Sequence
+
+## Step 1 — Project Setup
+
+Create:
+
+```text
+FastAPI backend
+Frontend
+Firebase project
+Firestore
+Cloud Storage
+Environment configuration
+```
+
+---
+
+## Step 2 — Upload System
+
+Implement:
+
+```text
+Create case
+Upload multiple files
+Validate files
+Store temporary files
+Create Firestore metadata
+```
+
+---
+
+## Step 3 — Basic PDF Extraction
+
+First implement digital PDF text extraction.
+
+Do NOT start with sophisticated ML.
+
+Goal:
+
+```text
+PAN.pdf
+ ↓
+Text
+ ↓
+Page-level results
+```
+
+---
+
+## Step 4 — DOCX Extraction
+
+Add DOCX support.
+
+---
+
+## Step 5 — OCR
+
+Add OCR fallback:
+
+```text
+PDF has text?
+    │
+    ├── YES → extract text
+    │
+    └── NO → OCR
+```
+
+---
+
+## Step 6 — Extraction Failure System
+
+Implement:
+
+```text
+SUCCESS
+PARTIAL
+FAILED
+UNSUPPORTED
+```
+
+before adding advanced information extraction.
+
+This is important because failure visibility is a core product requirement.
+
+---
+
+## Step 7 — Structured Information Extraction
+
+Initially support a small set of common fields:
+
+```text
+Name
+PAN
+GSTIN
+Address
+Company Name
+Document Number
+Date
+```
+
+The extraction architecture should allow more fields to be added later.
+
+---
+
+## Step 8 — Consolidated Results Page
+
+Build the first page showing all extracted information.
+
+---
+
+## Step 9 — Document Review Page
+
+Build:
+
+```text
+Document viewer | Extracted information
+```
+
+---
+
+## Step 10 — Provenance Linking
+
+Connect:
+
+```text
+Extracted value
+      ↓
+Document
+      ↓
+Page
+      ↓
+Source location
+```
+
+---
+
+## Step 11 — Automatic Deletion
+
+Implement configurable expiration:
+
+```env
+DOCUMENT_RETENTION_MINUTES=10
+```
+
+Use server-side/storage-side cleanup.
+
+---
+
+## Step 12 — Testing
+
+Create test cases for:
+
+1. Digital PDF
+2. Scanned PDF
+3. Clear image
+4. Blurry image
+5. Corrupted PDF
+6. Unsupported file
+7. DOCX
+8. Multi-page PDF
+9. Multiple simultaneous uploads
+10. Partial OCR
+11. Empty document
+12. Expired document
+
+---
+
+# 36. Future Phases
+
+After Phase 1 works reliably:
+
+## Phase 2 — Document Classification
+
+Automatically identify:
+
+```text
+PAN
+Aadhaar
+GST
+COI
+MOA/AOA
+LOA
+BO
+SVR
+RBI License
+etc.
+```
+
+## Phase 3 — KYC Requirement Engine
+
+Use case type + organization type to determine expected documents.
+
+Example:
+
+```text
+Entity:
+Corporate
+
+Type:
+Private Limited
+
+Required:
+COI
+MOA/AOA
+Company PAN
+GST
+BO
+Annexure L1
+LOA
+SVR
+Cluster Head Approval
+```
+
+The supplied requirements demonstrate why this needs to be rule-driven rather than hard-coded to one universal checklist.
+
+## Phase 4 — Cross-Document Comparison
+
+Compare information across documents:
+
+```text
+PAN
+    ↓
+Company Name
+
+GST
+    ↓
+Legal Name
+
+COI
+    ↓
+Company Name
+```
+
+Flag potential mismatches.
+
+## Phase 5 — KYC Assistance
+
+Generate:
+
+```text
+Complete
+Incomplete
+Potential mismatch
+Missing document
+Manual review required
+```
+
+## Phase 6 — Remarks Assistance
+
+Eventually assist the employee in generating standardized remarks based on verified extraction results.
+
+---
+
+# 37. Design Principles
+
+The implementation should follow these principles.
+
+### 1. Extraction before validation
+
+First determine:
+
+> What does the document say?
+
+Only later determine:
+
+> Is the information valid?
+
+### 2. Never hide uncertainty
+
+If extraction is unreliable, explicitly tell the user.
+
+### 3. Every value needs provenance
+
+Never create an extracted field without knowing where it came from when the source can be determined.
+
+### 4. Documents are temporary
+
+Do not build the Phase 1 architecture around permanent document storage.
+
+### 5. One document failure must not stop the case
+
+Documents are processed independently.
+
+### 6. Replaceable extraction engines
+
+OCR/document extraction technology must be abstracted behind interfaces.
+
+### 7. Human review remains authoritative
+
+Phase 1 assists the employee. It does not make the KYC decision.
+
+---
+
+# 38. Definition of Done
+
+Phase 1 is complete when the following workflow works end-to-end:
+
+```text
+User
+ │
+ │ Uploads 8–15 documents
+ ▼
+FastAPI
+ │
+ ▼
+Temporary Cloud Storage
+ │
+ ▼
+Document Processing
+ │
+ ├── Digital text extraction
+ │
+ └── OCR fallback
+ │
+ ▼
+Extraction Results
+ │
+ ▼
+Firestore
+ │
+ ▼
+Frontend
+ │
+ ├── Consolidated Information Page
+ │
+ └── Document Review Page
+ │
+ ▼
+Source-linked review
+ │
+ ▼
+Temporary retention expires
+ │
+ ▼
+Original uploaded files deleted
+```
+
+The final user experience should reduce the need to manually switch between document explorer, spreadsheets, and individual documents simply to locate and compare information.
+
+The primary Phase 1 success metric is therefore:
+
+> **A user can upload an entire KYC document set once and inspect the extracted information and its source documents from a single application.**
