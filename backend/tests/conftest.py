@@ -2,6 +2,7 @@
 
 from collections.abc import Callable, Iterator
 from io import BytesIO
+from pathlib import Path
 
 import pymupdf
 import pytest
@@ -9,6 +10,7 @@ from app.core.config import Settings
 from app.main import app
 from fastapi.testclient import TestClient
 from tests.fakes import InMemoryRepository, InMemoryStorage
+from tests.fixtures.make_samples import generate_samples
 
 
 @pytest.fixture
@@ -108,3 +110,19 @@ def scanned_pdf_bytes(pdf_factory: Callable[..., bytes]) -> bytes:
 def encrypted_pdf_bytes(pdf_factory: Callable[..., bytes]) -> bytes:
     """Return a synthetic password-protected PDF."""
     return pdf_factory(["Synthetic protected page content."], user_password="test-pass")
+
+
+@pytest.fixture
+def synthetic_kyc_samples_factory(
+    tmp_path: Path,
+) -> Callable[..., dict[str, Path]]:
+    """Generate fake OCR documents inside pytest's temporary directory."""
+
+    def factory(
+        preset: str = "xerox_medium",
+        seed: int = 17,
+        folder: str = "samples",
+    ) -> dict[str, Path]:
+        return generate_samples(tmp_path / folder, preset=preset, seed=seed)
+
+    return factory

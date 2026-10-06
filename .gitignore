@@ -12,6 +12,7 @@ dist/
 !.env.example
 credentials/
 data/uploads/
+data/samples/
 *-debug.log
 **/*service-account*.json
 **/*firebase-adminsdk*.json

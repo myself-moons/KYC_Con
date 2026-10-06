@@ -117,3 +117,15 @@ python -m app.scripts.cleanup --older-than-minutes 10 --dry-run
 
 Run the same command without `--dry-run` only when you intend to delete the
 listed files.
+
+## Synthetic OCR Samples
+
+Generate fake document scans with sidecar ground truth using:
+
+```sh
+python -m tests.fixtures.make_samples --out data/samples --preset xerox_medium
+```
+
+The generated `data/samples/` output is gitignored. The tool also supports
+`clean`, `light_scan`, and `xerox_heavy` presets, a fixed random seed, and
+per-effect severity overrides such as `--severity blur=0.4`.

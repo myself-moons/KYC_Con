@@ -16,6 +16,8 @@ dependencies = [
     "pydantic-settings",
     "python-multipart",
     "pymupdf",
+    "Pillow>=10.4,<13",
+    "numpy>=1.26,<3",
     "firebase-admin",
     "pytest",
     "pytest-asyncio",
