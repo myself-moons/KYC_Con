@@ -59,6 +59,25 @@ upload directory: `GET /api/v1/cases/{case_id}/documents/{document_id}/file`.
 The endpoint requires authentication middleware to populate
 `request.state.principal`; it returns `401` until that integration is configured.
 
+## API Endpoints
+
+- `POST /api/v1/cases` creates a case.
+- `POST /api/v1/cases/{case_id}/documents` accepts multiple files and returns
+	one validation result per file.
+- `GET /api/v1/cases/{case_id}/status` returns counts by document status.
+- `GET /api/v1/cases/{case_id}/extractions` returns stored provenance fields.
+- `GET /api/v1/cases/{case_id}/documents/{document_id}` returns document
+	metadata without the private storage path.
+- `GET /api/v1/cases/{case_id}/documents/{document_id}/file` streams a private
+	file after authentication middleware supplies a principal.
+- `GET /api/v1/cases/{case_id}/documents/{document_id}/pages/{page_number}`
+	returns page text and normalized word boxes.
+- `POST /api/v1/cases/{case_id}/documents/{document_id}/retry` retries a failed
+	document while its source file is available.
+
+Only embedded PDF text extraction is implemented in this phase. DOCX and image
+files are validated, but their extraction engines are deferred.
+
 ## Run tests
 
 ```sh

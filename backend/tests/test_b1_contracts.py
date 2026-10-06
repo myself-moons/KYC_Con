@@ -30,12 +30,13 @@ def test_settings_defaults_and_extensions(monkeypatch: pytest.MonkeyPatch) -> No
     assert settings.pdf_min_text_chars_per_page == 50
     assert settings.pdf_min_alnum_ratio == 0.5
     assert settings.ocr_engine == "paddleocr"
+    assert settings.processing_timeout_seconds == 30.0
     assert settings.use_emulator is True
     assert settings.allowed_extensions == (".pdf", ".png", ".jpg")
 
 
-def test_error_enum_matches_srs_section_31() -> None:
-    assert {code.value for code in ExtractionErrorCode} == {
+def test_error_enum_includes_srs_and_b2_codes() -> None:
+    srs_codes = {
         "UNSUPPORTED_FILE_TYPE",
         "FILE_TOO_LARGE",
         "FILE_CORRUPTED",
@@ -49,6 +50,9 @@ def test_error_enum_matches_srs_section_31() -> None:
         "STORAGE_ERROR",
         "UNKNOWN_EXTRACTION_ERROR",
     }
+    assert srs_codes <= {code.value for code in ExtractionErrorCode}
+    assert "OCR_NOT_AVAILABLE" in {code.value for code in ExtractionErrorCode}
+    assert "FILE_UNAVAILABLE" in {code.value for code in ExtractionErrorCode}
     error = ExtractionError(
         code=ExtractionErrorCode.FILE_CORRUPTED,
         message="Corrupted synthetic fixture",

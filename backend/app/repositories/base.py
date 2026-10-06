@@ -46,12 +46,20 @@ class Repository(ABC):
         """Return all pages for a document in page order."""
 
     @abstractmethod
+    def delete_pages(self, case_id: str, document_id: str) -> None:
+        """Delete all page results for a document."""
+
+    @abstractmethod
     def save_field(self, field: ExtractedField) -> None:
         """Create or replace an extracted-field record."""
 
     @abstractmethod
     def list_fields(self, case_id: str) -> list[ExtractedField]:
         """Return all extracted fields in a case."""
+
+    @abstractmethod
+    def delete_fields(self, case_id: str, document_id: str) -> None:
+        """Delete all extracted fields for one document."""
 
 
 class StorageBackend(ABC):

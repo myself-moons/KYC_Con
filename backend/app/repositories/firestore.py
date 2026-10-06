@@ -70,6 +70,12 @@ class FirestoreRepository(Repository):
         ]
         return sorted(pages, key=lambda page: page.page_number)
 
+    def delete_pages(self, case_id: str, document_id: str) -> None:
+        pages_collection = self._document_ref(case_id, document_id).collection("pages")
+        page_refs = pages_collection.stream()
+        for page_ref in page_refs:
+            page_ref.reference.delete()
+
     def save_field(self, field: ExtractedField) -> None:
         self._case_ref(field.case_id).collection("extracted_fields").document(
             field.field_id
@@ -80,6 +86,12 @@ class FirestoreRepository(Repository):
         return [
             ExtractedField.model_validate(snapshot.to_dict()) for snapshot in snapshots
         ]
+
+    def delete_fields(self, case_id: str, document_id: str) -> None:
+        fields = self._case_ref(case_id).collection("extracted_fields").stream()
+        for field_snapshot in fields:
+            if field_snapshot.get("document_id") == document_id:
+                field_snapshot.reference.delete()
 
     def _case_ref(self, case_id: str):
         return self._client.collection("cases").document(case_id)

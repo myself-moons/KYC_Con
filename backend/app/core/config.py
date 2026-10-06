@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     )
     max_files_per_case: int = Field(default=15, gt=0)
     document_retention_minutes: int = Field(default=0, ge=0)
+    processing_timeout_seconds: float = Field(default=30.0, gt=0)
     pdf_min_text_chars_per_page: int = Field(default=50, ge=0)
     pdf_min_alnum_ratio: float = Field(default=0.5, ge=0.0, le=1.0)
     ocr_engine: Literal["paddleocr", "tesseract"] = "paddleocr"

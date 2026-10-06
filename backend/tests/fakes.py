@@ -57,6 +57,13 @@ class InMemoryRepository(Repository):
         ]
         return sorted(pages, key=lambda page: page.page_number)
 
+    def delete_pages(self, case_id: str, document_id: str) -> None:
+        self.pages = {
+            key: page
+            for key, page in self.pages.items()
+            if key[:2] != (case_id, document_id)
+        }
+
     def save_field(self, field: ExtractedField) -> None:
         self.fields[(field.case_id, field.field_id)] = field.model_copy(deep=True)
 
@@ -66,6 +73,13 @@ class InMemoryRepository(Repository):
             for (stored_case_id, _), field in self.fields.items()
             if stored_case_id == case_id
         ]
+
+    def delete_fields(self, case_id: str, document_id: str) -> None:
+        self.fields = {
+            key: field
+            for key, field in self.fields.items()
+            if (field.case_id, field.document_id) != (case_id, document_id)
+        }
 
 
 class InMemoryStorage(StorageBackend):
