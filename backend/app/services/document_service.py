@@ -15,6 +15,8 @@ from app.core.config import Settings, get_settings
 from app.core.exceptions import ExtractionErrorCode
 from app.core.logging import LogEvent, log_document_event
 from app.extractors.base import DocumentExtractor, ExtractionResult
+from app.extractors.docx import DOCXExtractor
+from app.extractors.ocr import OCRExtractor
 from app.extractors.pdf import PDFTextExtractor
 from app.models.case import Case
 from app.models.document import Document, DocumentStatus
@@ -56,11 +58,18 @@ class DocumentService:
         storage: StorageBackend,
         settings: Settings | None = None,
         pdf_extractor: DocumentExtractor | None = None,
+        docx_extractor: DocumentExtractor | None = None,
+        ocr_extractor: DocumentExtractor | None = None,
     ) -> None:
         self._repository = repository
         self._storage = storage
         self._settings = settings or get_settings()
         self._pdf_extractor = pdf_extractor or PDFTextExtractor(self._settings)
+        self._docx_extractor = docx_extractor or DOCXExtractor()
+        self._ocr_extractor = ocr_extractor or OCRExtractor(
+            settings=self._settings,
+            pdf_extractor=self._pdf_extractor,
+        )
 
     @property
     def max_upload_bytes(self) -> int:
@@ -218,10 +227,8 @@ class DocumentService:
                 )
             content = self._storage.download(document.storage_path)
             extension = PurePath(document.filename).suffix.lower()
-            if extension != ".pdf":
-                result = self._non_pdf_result(document, extension)
-            else:
-                result = self._extract_with_timeout(document, content)
+            extractor = self._extractor_for_extension(extension)
+            result = self._extract_with_timeout(extractor, document, content)
             for page in result.pages:
                 self._repository.save_page(case_id, page)
             document.status = result.status
@@ -417,13 +424,16 @@ class DocumentService:
         return False
 
     def _extract_with_timeout(
-        self, document: Document, content: bytes
+        self,
+        extractor: DocumentExtractor,
+        document: Document,
+        content: bytes,
     ) -> ExtractionResult:
         executor = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="document-extract"
         )
         future: Future[ExtractionResult] = executor.submit(
-            self._pdf_extractor.extract, document, content
+            extractor.extract, document, content
         )
         try:
             return future.result(timeout=self._settings.processing_timeout_seconds)
@@ -433,25 +443,12 @@ class DocumentService:
         finally:
             executor.shutdown(wait=False, cancel_futures=True)
 
-    @staticmethod
-    def _non_pdf_result(document: Document, extension: str) -> ExtractionResult:
+    def _extractor_for_extension(self, extension: str) -> DocumentExtractor:
         if extension == ".docx":
-            code = ExtractionErrorCode.DOCX_PARSE_FAILED
-            message = "DOCX extraction is not available in this processing phase."
-        else:
-            code = ExtractionErrorCode.OCR_NOT_AVAILABLE
-            message = "OCR is not available for image documents in this phase."
-        return ExtractionResult(
-            document_id=document.document_id,
-            status=DocumentStatus.FAILED,
-            error=ExtractionError(
-                code=code,
-                message=message,
-                document_id=document.document_id,
-                retryable=False,
-            ),
-            extraction_method="none",
-        )
+            return self._docx_extractor
+        if extension == ".pdf" or extension in {".jpg", ".jpeg", ".png"}:
+            return self._ocr_extractor
+        raise ValueError(f"No extractor configured for {extension!r}")
 
     def _expires_at(self) -> datetime | None:
         if not self._settings.document_retention_minutes:

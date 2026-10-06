@@ -3,10 +3,10 @@
 These user-approved decisions override conflicting requirements in the SRS and
 `.github/copilot-instructions.md`.
 
-1. **Scope:** Implement only SRS Steps 1–3 and the Step 6 status/failure system.
-   The requested work is split into reviewable foundation, core-code, and test
-   phases. Do not implement frontend, DOCX extraction, field extraction, or OCR
-   before those are separately approved.
+1. **Scope:** SRS Steps 4 and 5 (DOCX extraction and pretrained OCR) are now
+   explicitly approved in addition to the earlier Steps 1–3 and Step 6
+   status/failure system. Frontend and structured field extraction remain out
+   of scope until separately approved.
 2. **Persistence and cost:** Firestore is the only Firebase product and must
    remain on the free Spark plan. Firebase Cloud Storage is dropped because it
    requires the paid Blaze plan. Store all JSON/metadata (cases, documents,
@@ -23,7 +23,7 @@ These user-approved decisions override conflicting requirements in the SRS and
    committed.
 4. **PDF text usability:** Configure `PDF_MIN_TEXT_CHARS_PER_PAGE=50` and
    `PDF_MIN_ALPHANUMERIC_RATIO=0.5` as conservative defaults. A page that fails
-   either check is marked `needs_ocr`; OCR itself is deferred to SRS Step 5.
+   either check is marked `needs_ocr` and routed to the approved OCR fallback.
 5. **Retention:** `DOCUMENT_RETENTION_MINUTES=0` is the default and disables
    cleanup. Local files are deleted only by an explicitly run manual CLI, for
    example
@@ -36,19 +36,23 @@ These user-approved decisions override conflicting requirements in the SRS and
    unsupported type, excessive size, corruption, unreadability, and empty
    files. Only case-level problems (missing case, no files, or too many files)
    fail the complete request. One bad file never blocks other files.
-7. **OCR decision:** When OCR is implemented in Step 5, use pretrained PaddleOCR
-   (PP-OCR) as primary and Tesseract as fallback behind an `OCREngine`
-   interface. Do not train a model or add OCR packages now. Add `OCR_ENGINE` to
-   application configuration.
+7. **OCR decision:** Use pretrained PaddleOCR (PP-OCR) as primary and Tesseract
+   as fallback behind an `OCREngine` interface. Do not train models. OCR
+   packages are in the optional `ocr` extra. The pytesseract wrapper does not
+   install the Tesseract system binary or language data; PaddleOCR downloads
+   pretrained models on first use.
 8. **Python environment and dependencies:** Use Python 3.12 in the
    repository-root `.venv` (project range `>=3.11,<3.13`) for all Python
    commands and tests to preserve compatibility with future OCR dependencies.
    Document venv creation/activation for Windows and macOS/Linux. Ignore `.venv`
-   and credential files. Current dependencies are FastAPI, Uvicorn,
-   pydantic-settings, python-multipart, PyMuPDF, firebase-admin, pytest,
-   pytest-asyncio, httpx, Ruff, and Black. Bound FastAPI, Starlette, and httpx
-   to compatible versions to avoid TestClient deprecation warnings.
-   Do not install PaddleOCR/Tesseract packages in this phase.
+   and credential files. Base dependencies include FastAPI, Uvicorn,
+   pydantic-settings, python-multipart, PyMuPDF, python-docx, firebase-admin,
+   pytest, pytest-asyncio, httpx, Pillow, NumPy, Ruff, and Black. OCR-only
+   dependencies (CPU PaddlePaddle, PaddleOCR, pytesseract, and OpenCV contrib)
+   are in the `ocr` extra. PaddleX's OCR-core check rejected the headless-only
+   build, so the working environment keeps only the required contrib OpenCV
+   distribution. Bound FastAPI, Starlette, and httpx to compatible versions to
+   avoid TestClient deprecation warnings.
 9. **Local file access:** Store files using server-generated UUID names in
    per-case directories. Reject unsafe paths, never expose the upload directory
    as static content, and serve documents through a private-ready API streaming

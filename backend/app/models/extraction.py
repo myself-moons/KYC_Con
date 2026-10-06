@@ -23,6 +23,18 @@ class WordBox(BaseModel):
 
     text: str
     bbox: BoundingBox
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    low_confidence: bool = False
+
+
+class OCRLine(BaseModel):
+    """A recognized line with normalized coordinates and word confidences."""
+
+    text: str
+    confidence: float = Field(ge=0.0, le=1.0)
+    bbox: BoundingBox
+    words: list[WordBox] = Field(default_factory=list)
+    low_confidence: bool = False
 
 
 class PageResult(BaseModel):
@@ -34,6 +46,12 @@ class PageResult(BaseModel):
     confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     needs_ocr: bool = False
     word_boxes: list[WordBox] = Field(default_factory=list)
+    ocr_lines: list[OCRLine] = Field(default_factory=list)
+    extraction_method: str | None = None
+    ocr_engine_used: str | None = None
+    ocr_primary_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    ocr_fallback_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    low_confidence: bool = False
 
 
 class ExtractionError(BaseModel):

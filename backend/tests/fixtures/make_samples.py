@@ -466,24 +466,33 @@ def _render_page(
         y += 12
 
     value_x = margin + max(220, document.width // 4)
-    row_gap = max(55, int(value_font.size * 2.2))
     available_width = document.width - value_x - margin
     for field_index, (label, value) in enumerate(page.fields.items()):
+        rendered_value = {
+            "PAN": "AAAAA 0000 A",
+            "GSTIN": "27 AAAAA 0000 A1Z5",
+        }.get(label, value)
         if document.stem == "pan_card" and label == "PAN":
             label_font_local = _font("mono", True, value_font.size)
-            value_font_local = _font("mono", True, int(value_font.size * 1.35))
+            value_font_local = _font("mono", False, max(48, value_font.size * 2))
+        elif label == "GSTIN":
+            label_font_local = _font("mono", True, value_font.size)
+            value_font_local = _font("mono", False, max(54, value_font.size * 3))
         else:
             label_font_local = label_font
             value_font_local = value_font
+        row_gap = max(55, int(value_font_local.size * 1.55))
         draw.text(
             (margin + 12, y),
             label.upper() + ":",
             font=label_font_local,
             fill=(64, 72, 78),
         )
-        draw.text((value_x, y), value, font=value_font_local, fill=(21, 30, 38))
-        if draw.textlength(value, font=value_font_local) > available_width:
-            words = value.split()
+        draw.text(
+            (value_x, y), rendered_value, font=value_font_local, fill=(21, 30, 38)
+        )
+        if draw.textlength(rendered_value, font=value_font_local) > available_width:
+            words = rendered_value.split()
             split_at = max(1, len(words) // 2)
             draw.text(
                 (value_x, y + value_font_local.size + 3),

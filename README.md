@@ -45,6 +45,25 @@ Do not commit `.venv`, `.env`, or Firebase service-account credentials. Copy
 stored under `UPLOAD_DIR` (default `./data/uploads`), which is gitignored and is
 not mounted as a static directory.
 
+Install the OCR engines in the Python 3.12 environment with:
+
+```sh
+python -m pip install -e '.[ocr]'
+```
+
+This extra installs CPU PaddlePaddle, PaddleOCR, pytesseract, OpenCV contrib,
+and NumPy. PaddleOCR's installed PaddleX OCR-core dependency requires the
+contrib distribution; a headless-only OpenCV trial failed PaddleX's runtime
+dependency check. This setup keeps exactly one OpenCV distribution installed.
+PaddleOCR downloads its pretrained models on first use; no model is
+trained by this project. `pytesseract` is only a Python wrapper: the Tesseract
+system binary must be installed separately, along with language data for
+`eng` and `hin` (optionally `mar`). For example, Debian/Ubuntu packages are
+`tesseract-ocr`, `tesseract-ocr-eng`, `tesseract-ocr-hin`, and
+`tesseract-ocr-mar`; macOS users can install `tesseract` and the desired
+language data through Homebrew. Set `OCR_LANGUAGES=eng+hin+mar` when Marathi
+data is installed.
+
 ## Run the backend
 
 With the virtual environment active:
@@ -75,8 +94,9 @@ The endpoint requires authentication middleware to populate
 - `POST /api/v1/cases/{case_id}/documents/{document_id}/retry` retries a failed
 	document while its source file is available.
 
-Only embedded PDF text extraction is implemented in this phase. DOCX and image
-files are validated, but their extraction engines are deferred.
+PDF embedded-text extraction, OCR fallback for scans/images, and page-1 DOCX
+text extraction are supported. OCR preprocessing preserves the original upload
+and uses a separate processed image at configured `OCR_DPI`.
 
 ## Run tests
 
@@ -84,9 +104,11 @@ files are validated, but their extraction engines are deferred.
 pytest
 ```
 
-Run local/unit tests without Firebase with `pytest -m 'not emulator'`. Firestore
-emulator tests are marked `emulator` and can be run separately with
-`pytest -m emulator`.
+Run the fast local/unit tests with `pytest -m 'not emulator and not slow'`.
+Firestore emulator tests are marked `emulator` and can be run separately with
+`pytest -m emulator`. Real OCR recovery tests are marked `slow` and run with
+`pytest -m slow`; they require the OCR extra, Tesseract binary/language data,
+OpenCV native libraries, and PaddleOCR model downloads.
 
 ## Firebase Emulator Suite
 
@@ -129,3 +151,15 @@ python -m tests.fixtures.make_samples --out data/samples --preset xerox_medium
 The generated `data/samples/` output is gitignored. The tool also supports
 `clean`, `light_scan`, and `xerox_heavy` presets, a fixed random seed, and
 per-effect severity overrides such as `--severity blur=0.4`.
+
+Generate the heavy preset separately and benchmark all presets found below
+`data/samples/` with:
+
+```sh
+python -m tests.fixtures.make_samples --out data/samples/xerox_heavy --preset xerox_heavy
+python -m app.scripts.benchmark_ocr --samples data/samples --csv data/samples/ocr_benchmark.csv
+```
+
+The benchmark prints a table and writes CSV metrics for character accuracy,
+mean confidence, field recovery rate, and seconds per page for PaddleOCR and
+Tesseract.

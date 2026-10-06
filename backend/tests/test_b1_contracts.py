@@ -30,6 +30,13 @@ def test_settings_defaults_and_extensions(monkeypatch: pytest.MonkeyPatch) -> No
     assert settings.pdf_min_text_chars_per_page == 50
     assert settings.pdf_min_alnum_ratio == 0.5
     assert settings.ocr_engine == "paddleocr"
+    assert settings.ocr_dpi == 300
+    assert settings.ocr_min_confidence == 0.5
+    assert settings.ocr_line_min_confidence == 0.5
+    assert settings.ocr_preprocess_grayscale is True
+    assert settings.ocr_preprocess_denoise is True
+    assert settings.ocr_preprocess_deskew is True
+    assert settings.ocr_preprocess_adaptive_threshold is False
     assert settings.processing_timeout_seconds == 30.0
     assert settings.use_emulator is True
     assert settings.allowed_extensions == (".pdf", ".png", ".jpg")
@@ -51,7 +58,7 @@ def test_error_enum_includes_srs_and_b2_codes() -> None:
         "UNKNOWN_EXTRACTION_ERROR",
     }
     assert srs_codes <= {code.value for code in ExtractionErrorCode}
-    assert "OCR_NOT_AVAILABLE" in {code.value for code in ExtractionErrorCode}
+    assert "OCR_NOT_AVAILABLE" not in {code.value for code in ExtractionErrorCode}
     assert "FILE_UNAVAILABLE" in {code.value for code in ExtractionErrorCode}
     error = ExtractionError(
         code=ExtractionErrorCode.FILE_CORRUPTED,

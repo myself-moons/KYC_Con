@@ -3,7 +3,6 @@
 from collections.abc import Callable
 
 from app.core.config import Settings
-from app.core.exceptions import ExtractionErrorCode
 from app.extractors.pdf import PDFTextExtractor
 from app.models.document import Document, DocumentStatus
 
@@ -43,7 +42,7 @@ def test_digital_pdf_extracts_pages_and_normalized_word_boxes(
         assert 0 < word_box.bbox.height <= 1
 
 
-def test_image_only_pdf_is_failed_and_needs_ocr(
+def test_image_only_pdf_is_marked_for_ocr(
     pdf_factory: Callable[..., bytes], settings: Settings
 ) -> None:
     result = PDFTextExtractor(settings).extract(
@@ -52,8 +51,7 @@ def test_image_only_pdf_is_failed_and_needs_ocr(
 
     assert result.status is DocumentStatus.FAILED
     assert result.pages[0].needs_ocr is True
-    assert result.error is not None
-    assert result.error.code is ExtractionErrorCode.OCR_NOT_AVAILABLE
+    assert result.error is None
 
 
 def test_mixed_digital_and_image_pages_are_partial(
@@ -68,8 +66,7 @@ def test_mixed_digital_and_image_pages_are_partial(
 
     assert result.status is DocumentStatus.PARTIAL
     assert [page.needs_ocr for page in result.pages] == [False, True]
-    assert result.error is not None
-    assert result.error.code is ExtractionErrorCode.OCR_NOT_AVAILABLE
+    assert result.error is None
 
 
 def test_junk_text_layer_fails_alphanumeric_ratio(
@@ -80,5 +77,4 @@ def test_junk_text_layer_fails_alphanumeric_ratio(
 
     assert result.status is DocumentStatus.FAILED
     assert result.pages[0].needs_ocr is True
-    assert result.error is not None
-    assert result.error.code is ExtractionErrorCode.OCR_NOT_AVAILABLE
+    assert result.error is None

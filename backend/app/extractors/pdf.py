@@ -53,6 +53,7 @@ class PDFTextExtractor(DocumentExtractor):
                         page_number=page_index + 1,
                         text=text,
                         needs_ocr=needs_ocr,
+                        extraction_method="pdf_text",
                         word_boxes=self._word_boxes(page.get_text("words"), page.rect),
                     )
                 )
@@ -63,12 +64,7 @@ class PDFTextExtractor(DocumentExtractor):
             status = (
                 DocumentStatus.PARTIAL if usable_page_count else DocumentStatus.FAILED
             )
-            error = ExtractionError(
-                code=ExtractionErrorCode.OCR_NOT_AVAILABLE,
-                message=(f"OCR is not available; {needs_ocr_count} page(s) need OCR."),
-                document_id=document.document_id,
-                retryable=False,
-            )
+            error = None
         else:
             status = DocumentStatus.SUCCESS
             error = None

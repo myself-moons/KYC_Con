@@ -38,6 +38,15 @@ class Settings(BaseSettings):
     pdf_min_text_chars_per_page: int = Field(default=50, ge=0)
     pdf_min_alnum_ratio: float = Field(default=0.5, ge=0.0, le=1.0)
     ocr_engine: Literal["paddleocr", "tesseract"] = "paddleocr"
+    ocr_dpi: int = Field(default=300, ge=72, le=600)
+    ocr_min_confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    ocr_line_min_confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    ocr_languages: str = "eng+hin"
+    ocr_paddle_language: str = "en"
+    ocr_preprocess_grayscale: bool = True
+    ocr_preprocess_denoise: bool = True
+    ocr_preprocess_deskew: bool = True
+    ocr_preprocess_adaptive_threshold: bool = False
 
     @field_validator("allowed_extensions", mode="before")
     @classmethod
